@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.Properties;
 
 import org.apache.hc.core5.http.HttpHost;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.CooperativeStickyAssignor;
@@ -79,6 +80,10 @@ public class OpenSearchConsumer {
 
                     }
                 }
+
+                // commit offset after the batch is consumed
+                consumer.commitSync();
+                logger.info("Offset have been committed!");
             }
         } catch (Exception e) {
             logger.error("Error: ", e);
@@ -113,6 +118,7 @@ public class OpenSearchConsumer {
         properties.setProperty("group.id", groupId);
         properties.setProperty("auto.offset.reset", "latest");
         properties.setProperty("partition.assignment.strategy", CooperativeStickyAssignor.class.getName());
+        properties.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
 
         return new KafkaConsumer<>(properties);
     }
