@@ -22,6 +22,8 @@ import org.opensearch.client.RestHighLevelClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.gson.JsonParser;
+
 public class OpenSearchConsumer {
 
     private static final Logger logger = LoggerFactory.getLogger(OpenSearchConsumer.class.getName());
@@ -57,13 +59,24 @@ public class OpenSearchConsumer {
 
                 for(ConsumerRecord<String, String> record: records){
                     // send the record into OpenSearch
+
+                    // strategy 1
+                    // define an ID using Kafka Record coordinates
+
+                   // String id = record.topic() + "_" + record.partition() + "_" + record.offset();
+                    
                     try{
+                        // stategy 2
+                        // extract the value from the JSON value
+                        String id = extractId(record.value());
+
                         IndexRequest indexRequest = new IndexRequest("wikimedia")
-                                    .source(record.value(), XContentType.JSON);
+                                    .source(record.value(), XContentType.JSON)
+                                    .id(id);
                         IndexResponse response = openSearchClient.index(indexRequest, RequestOptions.DEFAULT);
                         logger.info(response.getId());
                     }catch(Exception e){
-                        
+
                     }
                 }
             }
@@ -73,6 +86,16 @@ public class OpenSearchConsumer {
 
 
         // close things
+    }
+
+    private static String extractId(String json){
+        return JsonParser.parseString(json)
+                .getAsJsonObject()
+                .get("meta")
+                .getAsJsonObject()
+                .get("id")
+                .getAsString();
+
     }
 
     private static RestHighLevelClient createOpenSearchClient(){
