@@ -15,6 +15,8 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.opensearch.client.indices.CreateIndexRequest;
 import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.action.bulk.BulkRequest;
+import org.opensearch.action.bulk.BulkResponse;
 import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.index.IndexResponse;
 import org.opensearch.client.RequestOptions;
@@ -58,6 +60,8 @@ public class OpenSearchConsumer {
                 int recordCount = records.count();
                 logger.info("Received: " + recordCount + " records");
 
+                BulkRequest bulkRequest = new BulkRequest();
+
                 for(ConsumerRecord<String, String> record: records){
                     // send the record into OpenSearch
 
@@ -74,16 +78,30 @@ public class OpenSearchConsumer {
                         IndexRequest indexRequest = new IndexRequest("wikimedia")
                                     .source(record.value(), XContentType.JSON)
                                     .id(id);
-                        IndexResponse response = openSearchClient.index(indexRequest, RequestOptions.DEFAULT);
-                        logger.info(response.getId());
+                        //IndexResponse response = openSearchClient.index(indexRequest, RequestOptions.DEFAULT);
+                        //logger.info(response.getId());
+
+                        bulkRequest.add(indexRequest);
+
                     }catch(Exception e){
 
                     }
                 }
+                
+                if(bulkRequest.numberOfActions() > 0){
+                    BulkResponse bulkResponse = openSearchClient.bulk(bulkRequest, RequestOptions.DEFAULT); 
+                    logger.info("Inserted " + bulkResponse.getItems().length + " record(s).");
 
-                // commit offset after the batch is consumed
-                consumer.commitSync();
-                logger.info("Offset have been committed!");
+                    try{
+                        Thread.sleep(1000);
+                    }catch(InterruptedException e){
+                        e.printStackTrace();
+                    }
+                    
+                    // commit offset after the batch is consumed
+                    consumer.commitSync();
+                    logger.info("Offset have been committed!");
+                }
             }
         } catch (Exception e) {
             logger.error("Error: ", e);
